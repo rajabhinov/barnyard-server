@@ -16,9 +16,11 @@ const io = new Server(server, {
       "https://igs-pet.firebaseapp.com",
       "http://localhost:3000"
     ],
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
+
 
 app.use(express.static('public'));
 
@@ -334,4 +336,8 @@ setInterval(()=>{
 /* =====================================================
    START SERVER
 ===================================================== */
-server.listen(3000, ()=>console.log("🔥 Game Server running on port 3000"));
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+  console.log("Server running on port", PORT);
+});
+
