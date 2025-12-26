@@ -15,7 +15,7 @@ const io = new Server(server, {
       "https://igs-pet.web.app",
       "https://igs-pet.firebaseapp.com",
       "http://localhost:3000", // For local testing
-      "http://127.0.0.1:5500"  // For Live Server testing
+      "http://127.0.0.1:10000"  // For Live Server testing
     ],
     methods: ["GET", "POST"],
     credentials: true,
@@ -343,5 +343,6 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
+
 
 
