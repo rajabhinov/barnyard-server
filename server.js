@@ -17,80 +17,101 @@ const io = new Server(server, {
 
 app.use(express.static('public'));
 
-// --- CONFIG ---
-const MAP_WIDTH = 1600;
-const MAP_HEIGHT = 800;
+// --- GAME CONFIG ---
+const ZONES = {
+    FARM: 'farm',
+    ICE: 'ice',
+    VOLCANO: 'volcano',
+    DESERT: 'desert'
+};
 
-// --- GAME STATE ---
-const rooms = {
-    'room_us': { id: 'room_us', region: 'US', players: {}, items: [], decorations: [], taskProgress: 0, walls: [] },
-    'room_asia': { id: 'room_asia', region: 'Asia', players: {}, items: [], decorations: [], taskProgress: 0, walls: [] },
-    'room_eu': { id: 'room_eu', region: 'EU', players: {}, items: [], decorations: [], taskProgress: 0, walls: [] },
+// --- DATA STRUCTURES ---
+// We now categorize everything by ZONE so we only render what's in the current room
+const worldData = {
+    [ZONES.FARM]: { walls: [], decorations: [], doors: [] },
+    [ZONES.ICE]: { walls: [], decorations: [], doors: [] },
+    [ZONES.VOLCANO]: { walls: [], decorations: [], doors: [] },
+    [ZONES.DESERT]: { walls: [], decorations: [], doors: [] }
 };
 
 // --- MAP GENERATION ---
-const defaultWalls = [
-    // BOUNDARIES
-    { x: 0, y: 0, w: MAP_WIDTH, h: 20, type: 'fence' },
-    { x: 0, y: MAP_HEIGHT-20, w: MAP_WIDTH, h: 20, type: 'fence' },
-    { x: 0, y: 0, w: 20, h: MAP_HEIGHT, type: 'fence' },
-    { x: MAP_WIDTH-20, y: 0, w: 20, h: MAP_HEIGHT, type: 'fence' },
 
-    // BUILDINGS & PROPS
-    // ✅ FIXED: Barn size reduced from 300x200 to 200x150 so players don't get stuck
-    { x: 700, y: 325, w: 200, h: 150, type: 'barn' }, 
+// 1. FARM (Hub)
+worldData[ZONES.FARM].walls = [
+    { x: 0, y: 0, w: 800, h: 20, type: 'fence' }, // Bounds
+    { x: 0, y: 780, w: 800, h: 20, type: 'fence' },
+    { x: 0, y: 0, w: 20, h: 800, type: 'fence' },
+    { x: 780, y: 0, w: 20, h: 800, type: 'fence' },
+    { x: 300, y: 300, w: 200, h: 150, type: 'barn' }, // Center Barn
     { x: 100, y: 100, w: 60, h: 60, type: 'tree' },
-    
-    // WATER (Bottom Left)
-    { x: 50, y: 500, w: 250, h: 150, type: 'water' },
-
-    // ICE ZONE (Top Right)
-    { x: 1100, y: 50, w: 100, h: 100, type: 'cave' }, 
-    { x: 1300, y: 250, w: 80, h: 80, type: 'ice_rock' },
-
-    // VOLCANO ZONE (Bottom Right)
-    { x: 1100, y: 550, w: 100, h: 100, type: 'cave (1)' },
-    { x: 1400, y: 600, w: 120, h: 120, type: 'lava_pit' },
+    { x: 600, y: 100, w: 60, h: 60, type: 'tree' }
+];
+// Doors from Farm to others
+worldData[ZONES.FARM].doors = [
+    { x: 400, y: 20, w: 60, h: 60, target: ZONES.ICE, tx: 400, ty: 700 },      // Top -> Ice
+    { x: 400, y: 720, w: 60, h: 60, target: ZONES.VOLCANO, tx: 400, ty: 100 }, // Bottom -> Volcano
+    { x: 20, y: 400, w: 60, h: 60, target: ZONES.DESERT, tx: 700, ty: 400 }    // Left -> Desert
 ];
 
-// DECORATIONS (Grass)
-const generateDecorations = () => {
-    let decos = [];
-    for(let i=0; i<60; i++) {
-        const id = Math.floor(Math.random() * 9) + 1; // 1 to 9
-        
-        // ✅ FIXED: Handle filename inconsistency
-        // Files 1-8 have a space: "grass (1).png"
-        // File 9 has NO space: "grass(9).png"
-        let filename = (id === 9) ? `grass(${id})` : `grass (${id})`;
+// 2. ICE (North)
+worldData[ZONES.ICE].walls = [
+    { x: 0, y: 0, w: 800, h: 20, type: 'ice_rock' },
+    { x: 0, y: 780, w: 800, h: 20, type: 'ice_rock' },
+    { x: 0, y: 0, w: 20, h: 800, type: 'ice_rock' },
+    { x: 780, y: 0, w: 20, h: 800, type: 'ice_rock' },
+    { x: 200, y: 200, w: 100, h: 100, type: 'cave' },
+    { x: 600, y: 300, w: 80, h: 80, type: 'ice_rock' }
+];
+worldData[ZONES.ICE].doors = [
+    { x: 400, y: 720, w: 60, h: 60, target: ZONES.FARM, tx: 400, ty: 100 } // Back to Farm
+];
 
-        decos.push({
-            x: Math.random() * 750,
-            y: Math.random() * 750,
-            w: 40, h: 40,
-            type: filename 
-        });
-    }
-    return decos;
+// 3. VOLCANO (South)
+worldData[ZONES.VOLCANO].walls = [
+    { x: 0, y: 0, w: 800, h: 20, type: 'cave (1)' },
+    { x: 0, y: 780, w: 800, h: 20, type: 'cave (1)' },
+    { x: 0, y: 0, w: 20, h: 800, type: 'cave (1)' },
+    { x: 780, y: 0, w: 20, h: 800, type: 'cave (1)' },
+    { x: 300, y: 300, w: 120, h: 120, type: 'lava_pit' }
+];
+worldData[ZONES.VOLCANO].doors = [
+    { x: 400, y: 20, w: 60, h: 60, target: ZONES.FARM, tx: 400, ty: 700 } // Back to Farm
+];
+
+// 4. DESERT (West) - NEW!
+worldData[ZONES.DESERT].walls = [
+    { x: 0, y: 0, w: 800, h: 20, type: 'mount' },
+    { x: 0, y: 780, w: 800, h: 20, type: 'mount' },
+    { x: 0, y: 0, w: 20, h: 800, type: 'mount' },
+    { x: 780, y: 0, w: 20, h: 800, type: 'mount' },
+    { x: 200, y: 200, w: 60, h: 80, type: 'cactus' },
+    { x: 600, y: 500, w: 60, h: 80, type: 'cactus (1)' },
+    { x: 100, y: 600, w: 100, h: 80, type: 'mount' }
+];
+worldData[ZONES.DESERT].doors = [
+    { x: 720, y: 400, w: 60, h: 60, target: ZONES.FARM, tx: 100, ty: 400 } // Back to Farm
+];
+worldData[ZONES.DESERT].decorations = [
+    { x: 500, y: 200, w: 80, h: 80, type: 'camel' }, // Decoration
+    { x: 300, y: 600, w: 50, h: 50, type: 'yucca' }
+];
+
+// --- ITEMS ---
+const initialItems = [
+    { id: 'bag1', type: 'bag', x: 200, y: 200, zone: ZONES.FARM },
+    { id: 'ice1', type: 'ice-box', x: 250, y: 250, zone: ZONES.ICE },
+    { id: 'stone1', type: 'stone', x: 500, y: 500, zone: ZONES.VOLCANO },
+    { id: 'yucca1', type: 'yucca', x: 400, y: 400, zone: ZONES.DESERT } // Desert Item
+];
+
+// --- ROOM STATE ---
+const rooms = {
+    'room_us': { id: 'room_us', region: 'US', players: {}, items: [], taskProgress: 0 },
+    'room_asia': { id: 'room_asia', region: 'Asia', players: {}, items: [], taskProgress: 0 },
+    'room_eu': { id: 'room_eu', region: 'EU', players: {}, items: [], taskProgress: 0 },
 };
 
-// ITEMS
-const initialItems = [
-    { id: 'bag1', type: 'bag', x: 200, y: 200 },        
-    { id: 'bag2', type: 'bag', x: 300, y: 150 },
-    { id: 'ice1', type: 'ice-box', x: 1150, y: 150 },   
-    { id: 'ice2', type: 'ice-box', x: 1250, y: 100 },
-    { id: 'stone1', type: 'stone', x: 1200, y: 650 },   
-    { id: 'stone2', type: 'stone', x: 1300, y: 600 },
-    { id: 'fish1', type: 'fish', x: 150, y: 550 },
-    { id: 'fish2', type: 'fish', x: 100, y: 600 }
-];
-
-Object.values(rooms).forEach(r => { 
-    r.walls = defaultWalls; 
-    r.decorations = generateDecorations();
-    r.items = JSON.parse(JSON.stringify(initialItems)); 
-});
+Object.values(rooms).forEach(r => { r.items = JSON.parse(JSON.stringify(initialItems)); });
 
 io.on('connection', (socket) => {
   socket.emit('roomListUpdate', getRoomList());
@@ -101,83 +122,117 @@ io.on('connection', (socket) => {
       socket.join(roomId);
       
       room.players[socket.id] = {
-        // Spawn slightly away from barn to prevent stuck on join
-        x: 600, y: 400, 
-        playerId: socket.id, role: 'INNOCENT',
-        name: userData.name || "Player", skin: userData.skin || "bear", 
-        isDead: false, carrying: null 
+        x: 400, y: 500, // Spawn at Farm
+        playerId: socket.id, 
+        role: 'INNOCENT',
+        name: userData.name || "Player", 
+        skin: userData.skin || "bear", 
+        isDead: false, 
+        carrying: null,
+        zone: ZONES.FARM // START IN FARM
       };
 
       const pCount = Object.keys(room.players).length;
       if (pCount === 1) room.players[socket.id].role = 'FARMER';
       if (pCount === 2) room.players[socket.id].role = 'WOLF';
 
+      // Send Static World Data Once
+      socket.emit('worldData', worldData);
+      
+      // Update Loop
       io.to(roomId).emit('currentPlayers', room.players);
-      socket.emit('mapData', { walls: room.walls, decorations: room.decorations });
       io.to(roomId).emit('itemsUpdate', room.items);
       socket.emit('taskUpdate', room.taskProgress);
       io.emit('roomListUpdate', getRoomList());
   });
 
-  socket.on('playerMovement', ({ roomId, x, y }) => {
+  socket.on('playerMovement', ({ roomId, x, y, zone }) => {
       const room = rooms[roomId];
-      if (room && room.players[socket.id] && !room.players[socket.id].isDead) {
-          room.players[socket.id].x = x; room.players[socket.id].y = y;
-          socket.to(roomId).emit('playerMoved', room.players[socket.id]);
+      if (room && room.players[socket.id]) {
+          const p = room.players[socket.id];
+          p.x = x; p.y = y;
+          
+          // HANDLE ZONE CHANGE (Door Logic)
+          if (zone && p.zone !== zone) {
+              p.zone = zone;
+          }
+          
+          socket.to(roomId).emit('playerMoved', p);
       }
   });
 
+  // PICKUP
   socket.on('pickupItem', ({ roomId, itemId }) => {
       const room = rooms[roomId];
       const player = room.players[socket.id];
-      if (!room || !player || player.isDead || player.carrying) return;
+      if (!room || !player || player.carrying) return;
 
       const idx = room.items.findIndex(i => i.id === itemId);
       if (idx !== -1) {
           const item = room.items[idx];
-          const dist = Math.sqrt((player.x - item.x)**2 + (player.y - item.y)**2);
-          if (dist < 100) {
-              player.carrying = item.type; 
-              room.items.splice(idx, 1); 
-              io.to(roomId).emit('currentPlayers', room.players);
-              io.to(roomId).emit('itemsUpdate', room.items);
+          // Must be in same zone
+          if (item.zone === player.zone) {
+              const dist = Math.sqrt((player.x - item.x)**2 + (player.y - item.y)**2);
+              if (dist < 100) {
+                  player.carrying = item.type;
+                  room.items.splice(idx, 1);
+                  io.to(roomId).emit('currentPlayers', room.players);
+                  io.to(roomId).emit('itemsUpdate', room.items);
+              }
           }
       }
   });
 
+  // DELIVER (Only in Farm Zone near Barn)
   socket.on('deliverItem', ({ roomId }) => {
       const room = rooms[roomId];
       const player = room.players[socket.id];
       if (!room || !player || !player.carrying) return;
 
-      // Updated Barn coordinates
-      const dist = Math.sqrt((player.x - 800)**2 + (player.y - 400)**2); 
-      if (dist < 250) {
-          const type = player.carrying;
-          player.carrying = null;
-          room.taskProgress += 10;
-          setTimeout(() => spawnItem(room, type), 5000);
-          io.to(roomId).emit('currentPlayers', room.players);
-          io.to(roomId).emit('taskUpdate', room.taskProgress);
-          if (room.taskProgress >= 100) {
-              io.to(roomId).emit('gameOver', { winner: 'FARMERS' });
-              resetRoom(room);
+      if (player.zone === ZONES.FARM) {
+          const dist = Math.sqrt((player.x - 400)**2 + (player.y - 375)**2); // Barn center
+          if (dist < 200) {
+              const type = player.carrying;
+              player.carrying = null;
+              room.taskProgress += 10;
+              
+              // Respawn logic
+              setTimeout(() => {
+                  let newItem = { id: Date.now().toString(), type: type, x: 400, y: 400, zone: ZONES.FARM };
+                  if (type === 'ice-box') { newItem.zone = ZONES.ICE; newItem.x = 250; newItem.y = 250; }
+                  if (type === 'stone') { newItem.zone = ZONES.VOLCANO; newItem.x = 500; newItem.y = 500; }
+                  if (type === 'yucca') { newItem.zone = ZONES.DESERT; newItem.x = 400; newItem.y = 400; }
+                  room.items.push(newItem);
+                  io.to(room.id).emit('itemsUpdate', room.items);
+              }, 5000);
+
+              io.to(roomId).emit('currentPlayers', room.players);
+              io.to(roomId).emit('taskUpdate', room.taskProgress);
+              
+              if (room.taskProgress >= 100) {
+                  io.to(roomId).emit('gameOver', { winner: 'FARMERS' });
+                  resetRoom(room);
+              }
           }
       }
   });
 
+  // KILL
   socket.on('killPlayer', ({ roomId, targetId }) => {
       const room = rooms[roomId];
-      if (room && room.players[socket.id]?.role === 'WOLF') {
-          room.players[targetId].isDead = true;
-          room.players[targetId].carrying = null; 
+      const killer = room.players[socket.id];
+      const victim = room.players[targetId];
+      // Must be in same zone
+      if (killer && victim && killer.role === 'WOLF' && killer.zone === victim.zone) {
+          victim.isDead = true;
+          victim.carrying = null;
           io.to(roomId).emit('playerDied', { victimId: targetId });
           io.to(roomId).emit('currentPlayers', room.players);
           checkWinCondition(room);
       }
   });
 
-  socket.on('disconnect', () => { 
+  socket.on('disconnect', () => {
       Object.values(rooms).forEach(room => {
           if (room.players[socket.id]) {
               delete room.players[socket.id];
@@ -188,17 +243,7 @@ io.on('connection', (socket) => {
   });
 });
 
-function spawnItem(room, type) {
-    let x = 400, y = 400;
-    if(type === 'bag') { x = 100 + Math.random()*200; y = 100 + Math.random()*200; }
-    if(type === 'ice-box') { x = 1100 + Math.random()*300; y = 50 + Math.random()*200; }
-    if(type === 'stone') { x = 1100 + Math.random()*300; y = 500 + Math.random()*200; }
-    if(type === 'fish') { x = 50 + Math.random()*150; y = 500 + Math.random()*150; }
-    room.items.push({ id: Date.now().toString(), type: type, x: x, y: y });
-    io.to(room.id).emit('itemsUpdate', room.items);
-}
-
-function checkWinCondition(room) { 
+function checkWinCondition(room) { /* Same as before */ 
     const wolves = Object.values(room.players).filter(p => p.role === 'WOLF' && !p.isDead);
     const farmers = Object.values(room.players).filter(p => p.role !== 'WOLF' && !p.isDead);
     if(wolves.length === 0) { io.to(room.id).emit('gameOver', { winner: 'FARMERS' }); resetRoom(room); }
@@ -207,14 +252,17 @@ function checkWinCondition(room) {
 
 function resetRoom(room) {
     setTimeout(() => {
-        Object.values(room.players).forEach(p => { p.isDead = false; p.role = 'INNOCENT'; p.carrying=null; p.x=600; p.y=400; });
+        Object.values(room.players).forEach(p => { p.isDead = false; p.role = 'INNOCENT'; p.carrying=null; p.x=400; p.y=500; p.zone='farm'; });
         room.items = JSON.parse(JSON.stringify(initialItems));
         room.taskProgress = 0;
         const ids = Object.keys(room.players);
         if(ids.length > 0) room.players[ids[Math.floor(Math.random()*ids.length)]].role = 'WOLF';
         io.to(room.id).emit('gameReset');
+        io.to(room.id).emit('currentPlayers', room.players);
+        io.to(room.id).emit('itemsUpdate', room.items);
     }, 5000);
 }
+
 function getRoomList() { return Object.values(rooms).map(r => ({ id: r.id, region: r.region, playerCount: Object.keys(r.players).length })); }
 
 server.listen(3000);
