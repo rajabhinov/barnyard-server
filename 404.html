@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Page Not Found - IGS Farm</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #00b894;
+            --secondary: #0984e3;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        body {
+            font-family: 'Nunito', sans-serif;
+            background: var(--bg-gradient);
+            color: #2d3436;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 40px;
+            border-radius: 30px;
+            box-shadow: var(--shadow);
+            max-width: 400px;
+            width: 90%;
+            border: 4px solid white;
+            position: relative;
+        }
+
+        h1 {
+            font-size: 80px;
+            margin: 0;
+            color: var(--secondary);
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        h2 {
+            font-size: 24px;
+            margin: 10px 0 20px;
+            color: #636e72;
+        }
+
+        p {
+            color: #b2bec3;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+
+        /* --- THE LOST COW ANIMATION --- */
+        .lost-pet {
+            font-size: 100px;
+            display: block;
+            margin-bottom: 20px;
+            animation: float 3s ease-in-out infinite;
+            position: relative;
+        }
+
+        .question-mark {
+            position: absolute;
+            top: 0;
+            right: 20%;
+            font-size: 50px;
+            color: var(--primary);
+            animation: bounce 1s infinite alternate;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px) rotate(-5deg); }
+            50% { transform: translateY(-15px) rotate(5deg); }
+            100% { transform: translateY(0px) rotate(-5deg); }
+        }
+
+        @keyframes bounce {
+            from { transform: translateY(0); }
+            to { transform: translateY(-10px); }
+        }
+
+        /* --- BUTTON --- */
+        .btn-home {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            text-decoration: none;
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 18px;
+            box-shadow: 0 5px 15px rgba(0, 184, 148, 0.4);
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        .btn-home:hover {
+            transform: scale(1.05);
+            background: #00a884;
+        }
+
+        .btn-home:active {
+            transform: scale(0.95);
+        }
+
+        /* Background Decor */
+        .bg-decor {
+            position: absolute;
+            z-index: -1;
+            opacity: 0.1;
+            font-size: 150px;
+        }
+        .bg-1 { top: -50px; left: -50px; transform: rotate(-20deg); }
+        .bg-2 { bottom: -50px; right: -50px; transform: rotate(20deg); }
+
+    </style>
+</head>
+<body>
+
+    <div class="bg-decor bg-1">🌾</div>
+    <div class="bg-decor bg-2">🚜</div>
+
+    <div class="container">
+        <div class="lost-pet">
+            🐮
+            <div class="question-mark">?</div>
+        </div>
+        
+        <h1>404</h1>
+        <h2>Are you lost, partner?</h2>
+        
+        <p>
+            It looks like this animal wandered off the farm.<br>
+            The page you are looking for doesn't exist.
+        </p>
+
+        <a href="/" class="btn-home">🚜 Return to Farm</a>
+    </div>
+
+</body>
+</html>
