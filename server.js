@@ -146,17 +146,22 @@ io.on('connection', (socket) => {
       io.emit('roomListUpdate', getRoomList());
   });
 
-  socket.on('playerMovement', ({ roomId, x, y, zone }) => {
+ socket.on('playerMovement', ({ roomId, x, y, zone }) => {
       const room = rooms[roomId];
+      // Safety check: Does room and player exist?
       if (room && room.players[socket.id]) {
           const p = room.players[socket.id];
-          p.x = x; p.y = y;
           
-          // HANDLE ZONE CHANGE (Door Logic)
-          if (zone && p.zone !== zone) {
+          // Update Position
+          p.x = x; 
+          p.y = y;
+          
+          // Update Zone (Critical for multi-room logic)
+          if (zone) {
               p.zone = zone;
           }
           
+          // Broadcast to others in the room
           socket.to(roomId).emit('playerMoved', p);
       }
   });
@@ -266,3 +271,4 @@ function resetRoom(room) {
 function getRoomList() { return Object.values(rooms).map(r => ({ id: r.id, region: r.region, playerCount: Object.keys(r.players).length })); }
 
 server.listen(3000);
+
