@@ -113,20 +113,19 @@ io.on('connection', socket => {
     socket.join(roomId);
 
     room.players[socket.id] = {
-      playerId: socket.id,
-      name: userData?.name || 'Player',
-      skin: userData?.skin || 'bear',
-      x: 400, y: 500,
-      role: 'INNOCENT',
-      isDead: false,
-      carrying: null,
-      zone: 'farm',
-      lastKillTime: 0,
-      emergenciesUsed: 0,
-      xp: 0,
-      rank: 'Bronze',
-      lastActive: Date.now()
-    };
+    id: socket.id,
+    name,
+    skin,
+    x: spawnX,
+    y: spawnY,
+    zone: 'farm',
+    role: assignRole(),
+    isDead: false,        // ✅ RESET
+    carrying: false,     // ✅ RESET
+    kills: 0,
+    tasks: 0
+};
+
 
     // Assign ONE wolf if enough players
     const ids = Object.keys(room.players);
@@ -306,3 +305,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log("🔥 Game Server running on port", PORT);
 });
+
