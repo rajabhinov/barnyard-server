@@ -2,76 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Barnyard Betrayal</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
-        /* FARM THEME */
-        body { margin: 0; background-color: #7bed9f; overflow: hidden; font-family: 'Nunito', sans-serif; touch-action: none; }
-        canvas { display: block; background-image: radial-gradient(#7bed9f 20%, #2ed573 20%); background-size: 40px 40px; } /* Grass Pattern */
-
-        /* --- SERVER BROWSER --- */
-        #server-browser { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); color: white; display: flex; flex-direction: column; align-items: center; padding-top: 50px; z-index: 200; backdrop-filter: blur(5px); }
-        .server-row { background: #fff; color: #333; width: 85%; max-width: 600px; padding: 15px; margin-bottom: 10px; border-radius: 15px; display: flex; align-items: center; justify-content: space-between; border: 4px solid #aaa; }
-        .btn-join { background: #2ed573; color: white; border: none; padding: 10px 20px; font-weight: bold; border-radius: 10px; cursor: pointer; border-bottom: 4px solid #26af61; }
-        .btn-join:active { transform: translateY(4px); border-bottom: 0; }
-
-        /* --- HUD --- */
-        #ui-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .hud-panel { pointer-events: auto; position: absolute; top: 10px; left: 10px; padding: 10px 15px; background: rgba(255,255,255,0.9); border-radius: 12px; border: 3px solid #333; font-weight: bold; color: #333; box-shadow: 0 4px 0 rgba(0,0,0,0.2); }
+        body { margin: 0; background-color: #000; overflow: hidden; font-family: 'Nunito', sans-serif; touch-action: none; user-select: none; -webkit-user-select: none; }
+        canvas { display: block; margin: 0 auto; }
         
-        /* --- MOBILE CONTROLS --- */
-        #mobile-controls { pointer-events: auto; position: absolute; bottom: 20px; left: 20px; display: none; /* Shown by JS on mobile */ }
-        .d-pad { position: relative; width: 120px; height: 120px; background: rgba(0,0,0,0.1); border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); }
-        .d-stick { position: absolute; top: 35px; left: 35px; width: 50px; height: 50px; background: rgba(255,255,255,0.8); border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.2); transition: 0.1s; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .task-bar-container { pointer-events: auto; position: absolute; top: 10px; left: 50%; transform: translateX(-50%); width: 40%; height: 20px; background: rgba(0,0,0,0.6); border: 2px solid white; border-radius: 10px; overflow: hidden; }
+        .task-fill { width: 0%; height: 100%; background: #2ed573; transition: width 0.5s; }
+        .info-panel { position: absolute; top: 10px; left: 10px; color: white; font-weight: bold; text-shadow: 0 2px 4px black; }
 
-        /* --- ACTION BUTTONS --- */
-        .action-btn { pointer-events: auto; display: none; position: absolute; bottom: 40px; width: 80px; height: 80px; border-radius: 50%; border: 4px solid white; font-weight: bold; font-size: 16px; text-align: center; line-height: 80px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); color: white; transition: transform 0.1s; }
-        .action-btn:active { transform: scale(0.9); }
-        #killBtn { background: #ff4757; right: 30px; }
+        #joystick-zone { pointer-events: auto; position: absolute; top: 0; left: 0; width: 50%; height: 100%; z-index: 10; }
+        .d-pad { position: absolute; width: 100px; height: 100px; background: rgba(255,255,255,0.2); border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); display: none; transform: translate(-50%, -50%); }
+        .d-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: white; border-radius: 50%; transform: translate(-50%, -50%); }
+
+        .action-btn { pointer-events: auto; display: none; position: absolute; bottom: 40px; right: 30px; width: 80px; height: 80px; border-radius: 50%; border: 4px solid white; font-weight: bold; font-size: 16px; text-align: center; line-height: 80px; color: white; cursor: pointer; box-shadow: 0 4px 10px black; }
+        #killBtn { background: #ff4757; }
+        #interactBtn { background: #00cec9; bottom: 140px; } 
         #reportBtn { background: #ffa502; right: 130px; }
 
-        /* --- MEETING --- */
-        #meetingOverlay { display: none; pointer-events: auto; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(45, 52, 54, 0.95); flex-direction: column; align-items: center; justify-content: center; color: white; z-index: 99; }
-        .vote-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 20px; }
-        .player-card { background: #fff; color: #333; padding: 10px; border-radius: 10px; text-align: center; cursor: pointer; border: 3px solid #eee; width: 80px; }
+        #server-browser, #gameOverScreen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.9); color: white; z-index: 100; }
+        #gameOverScreen { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="server-browser">
-        <h1>🚜 BARNYARD LIST</h1>
-        <div id="server-list" style="width:100%; display:flex; flex-direction:column; align-items:center;">
-            <div style="color:white;">Connecting...</div>
-        </div>
-    </div>
+    <div id="server-browser"><h1>🚜 BARNYARD</h1><div id="server-list">Loading...</div></div>
 
     <div id="ui-layer">
-        <div class="hud-panel">
-            <div style="font-size: 1.2rem;">🐮 <span id="roomName">...</span></div>
-            <div style="font-size: 0.9rem; color:#666;">Role: <span id="myRole">...</span></div>
-        </div>
-        
-        <div id="mobile-controls">
-            <div class="d-pad" id="joystick-base">
-                <div class="d-stick" id="joystick-head"></div>
-            </div>
-        </div>
-
+        <div class="task-bar-container"><div id="taskBar" class="task-fill"></div></div>
+        <div class="info-panel"><div style="font-size:1.2rem;" id="myRole">...</div></div>
+        <div id="joystick-zone"></div>
+        <div class="d-pad" id="joy-visual"><div class="d-stick" id="joy-stick"></div></div>
         <div id="killBtn" class="action-btn">EAT</div>
+        <div id="interactBtn" class="action-btn">GRAB</div>
         <div id="reportBtn" class="action-btn">ALERT</div>
     </div>
 
-    <div id="meetingOverlay">
-        <h1 style="color:#ff4757">🚨 EMERGENCY MEETING 🚨</h1>
-        <p>Who is the Wolf? Vote!</p>
-        <div class="vote-grid" id="voteContainer"></div>
-    </div>
-
+    <div id="gameOverScreen"><h1 id="winMessage">VICTORY</h1></div>
     <canvas id="gameCanvas"></canvas>
     
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-
     <script>
         const SERVER_URL = "https://barnyard-server.onrender.com"; 
         const urlParams = new URLSearchParams(window.location.search);
@@ -82,134 +54,138 @@
         const ctx = canvas.getContext('2d');
         const socket = io(SERVER_URL);
 
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+        function resize() { 
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = window.innerWidth * dpr; canvas.height = window.innerHeight * dpr;
+            canvas.style.width = window.innerWidth + 'px'; canvas.style.height = window.innerHeight + 'px';
+            ctx.scale(dpr, dpr);
+        }
+        window.addEventListener('resize', resize); resize();
 
         const images = {};
-        function getImg(type) {
-            if(!images[type]) { const i = new Image(); i.src = `assets/${type}.png`; images[type] = i; }
-            return images[type];
+        function getImg(type) { 
+            if(!images[type]) { 
+                const i = new Image(); 
+                i.src = `assets/${type}.png`; 
+                // Error handler: If image fails, mark it so we don't crash
+                i.onerror = () => { console.warn("Missing image:", type); i.isBroken = true; };
+                images[type] = i; 
+            } 
+            return images[type]; 
         }
 
         let players = {};
         let walls = [];
+        let decorations = []; 
+        let items = []; 
         let myId = null;
-        let isMeeting = false;
         let currentRoomId = null;
-        let moveInput = { x: 0, y: 0 }; // For Joystick
+        let moveInput = { x: 0, y: 0 }; 
+        const keys = {};
+        let camX = 0, camY = 0;
 
-        // --- JOYSTICK LOGIC ---
-        const joyBase = document.getElementById('joystick-base');
-        const joyHead = document.getElementById('joystick-head');
-        let dragging = false;
+        window.addEventListener('keydown', e => { keys[e.key] = true; if(e.code==='Space') handleAction(); });
+        window.addEventListener('keyup', e => keys[e.key] = false);
 
-        // Check if mobile to show joystick
-        if('ontouchstart' in window || navigator.maxTouchPoints > 0) {
-            document.getElementById('mobile-controls').style.display = 'block';
-        }
+        const joyZone = document.getElementById('joystick-zone');
+        const joyVisual = document.getElementById('joy-visual');
+        const joyStick = document.getElementById('joy-stick');
+        let joyOrigin = { x: 0, y: 0 };
+        let joyId = null;
 
-        joyBase.addEventListener('touchstart', (e) => { dragging = true; handleJoy(e.touches[0]); });
-        joyBase.addEventListener('touchmove', (e) => { if(dragging) { e.preventDefault(); handleJoy(e.touches[0]); } });
-        joyBase.addEventListener('touchend', () => { dragging = false; resetJoy(); });
+        joyZone.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const touch = e.changedTouches[0]; joyId = touch.identifier;
+            joyOrigin = { x: touch.clientX, y: touch.clientY };
+            joyVisual.style.display = 'block'; joyVisual.style.left = joyOrigin.x + 'px'; joyVisual.style.top = joyOrigin.y + 'px';
+            joyStick.style.transform = `translate(-50%, -50%)`; moveInput = { x: 0, y: 0 };
+        }, {passive: false});
 
-        function handleJoy(touch) {
-            const rect = joyBase.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
-            
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
-            const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 35); // Max radius
-            const angle = Math.atan2(dy, dx);
+        joyZone.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            let touch = null; for(let i=0; i<e.changedTouches.length; i++) if(e.changedTouches[i].identifier===joyId) touch=e.changedTouches[i];
+            if(!touch) return;
+            const dx = touch.clientX - joyOrigin.x; const dy = touch.clientY - joyOrigin.y;
+            const angle = Math.atan2(dy, dx); const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 40);
+            joyStick.style.transform = `translate(calc(-50% + ${Math.cos(angle)*dist}px), calc(-50% + ${Math.sin(angle)*dist}px))`;
+            if (dist > 5) { moveInput.x = Math.cos(angle); moveInput.y = Math.sin(angle); } else { moveInput = { x: 0, y: 0 }; }
+        }, {passive: false});
 
-            const moveX = Math.cos(angle) * dist;
-            const moveY = Math.sin(angle) * dist;
+        joyZone.addEventListener('touchend', (e) => { joyVisual.style.display = 'none'; moveInput = { x: 0, y: 0 }; joyId = null; });
 
-            joyHead.style.transform = `translate(${moveX}px, ${moveY}px)`;
-            
-            // Normalize input for game loop
-            moveInput.x = (Math.abs(dx) > 10) ? Math.sign(dx) : 0;
-            moveInput.y = (Math.abs(dy) > 10) ? Math.sign(dy) : 0;
-        }
-
-        function resetJoy() {
-            joyHead.style.transform = `translate(0px, 0px)`;
-            moveInput = {x:0, y:0};
-        }
-
-        // --- LOBBY LOGIC ---
         socket.on('roomListUpdate', (rooms) => {
             if(currentRoomId) return;
-            const list = document.getElementById('server-list');
-            list.innerHTML = '';
-            if(rooms.length === 0) list.innerHTML = '<div style="color:white;">No servers online.</div>';
-            rooms.forEach(r => {
-                const div = document.createElement('div');
-                div.className = 'server-row';
-                let avatarsHtml = '';
-                r.previewSkins.forEach(skin => avatarsHtml += `<img src="assets/${skin}.png" style="width:30px; border-radius:50%; border:2px solid #eee;">`);
-                div.innerHTML = `
-                    <div>
-                        <div style="font-weight:900; font-size:1.1rem;">${r.region}</div>
-                        <div style="font-size:0.8rem; color:#777;">${r.playerCount} / ${r.maxPlayers} Farmers</div>
-                        <div style="margin-top:5px;">${avatarsHtml}</div>
-                    </div>
-                    <button class="btn-join" onclick="joinGame('${r.id}')">JOIN</button>
-                `;
-                list.appendChild(div);
-            });
+            const list = document.getElementById('server-list'); list.innerHTML = '';
+            rooms.forEach(r => list.innerHTML += `<div style="background:white; color:black; padding:10px; margin:5px; border-radius:5px; cursor:pointer;" onclick="joinGame('${r.id}')">${r.region} (${r.playerCount}/12)</div>`);
         });
 
-        window.joinGame = (roomId) => {
-            currentRoomId = roomId;
+        window.joinGame = (rid) => {
+            currentRoomId = rid;
             document.getElementById('server-browser').style.display = 'none';
             document.getElementById('ui-layer').style.display = 'block';
-            document.getElementById('roomName').innerText = roomId.replace('room_', '').toUpperCase();
-            socket.emit('joinRoom', { roomId, userData: { name: myName, skin: mySkin } });
+            socket.emit('joinRoom', { roomId: rid, userData: { name: myName, skin: mySkin } });
             update();
         };
 
-        // --- GAME LOOP ---
-        const keys = {};
-        window.addEventListener('keydown', e => keys[e.key] = true);
-        window.addEventListener('keyup', e => keys[e.key] = false);
+        socket.on('currentPlayers', p => { players = p; myId = socket.id; updateUI(); });
+        socket.on('playerMoved', p => { if(players[p.playerId]) Object.assign(players[p.playerId], p); });
+        socket.on('mapData', d => { walls = d.walls; decorations = d.decorations || []; });
+        socket.on('itemsUpdate', i => { items = i; });
+        socket.on('playerDied', d => { if(players[d.victimId]) players[d.victimId].isDead = true; });
+        socket.on('taskUpdate', prog => { document.getElementById('taskBar').style.width = prog + '%'; });
+        socket.on('gameOver', d => { document.getElementById('gameOverScreen').style.display='flex'; document.getElementById('winMessage').innerText = d.winner + " WIN!"; });
+        socket.on('gameReset', () => { document.getElementById('gameOverScreen').style.display='none'; });
 
-        socket.on('currentPlayers', (p) => { players = p; myId = socket.id; updateUI(); });
-        socket.on('playerMoved', (p) => { if(players[p.playerId]) Object.assign(players[p.playerId], p); });
-        socket.on('mapData', (w) => { walls = w; });
-        socket.on('playerDied', (d) => { if(players[d.victimId]) players[d.victimId].isDead = true; });
-        socket.on('userDisconnected', (id) => { delete players[id]; });
-        socket.on('meetingStarted', () => { isMeeting = true; document.getElementById('meetingOverlay').style.display = 'flex'; renderVoting(); });
-
-        function updateUI() {
-            if(players[myId]) {
-                const r = players[myId].role;
-                const el = document.getElementById('myRole');
-                el.innerText = r === 'WOLF' ? '🐺 WOLF' : '🧑‍🌾 FARMER';
-                el.style.color = (r === 'WOLF') ? '#ff4757' : '#2ed573';
-            }
+        function updateUI() { if(players[myId]) document.getElementById('myRole').innerText = players[myId].role === 'WOLF' ? "🐺 WOLF" : "🧑‍🌾 FARMER"; }
+        function handleAction() {
+            const k=document.getElementById('killBtn'), i=document.getElementById('interactBtn');
+            if(k.style.display==='block') k.click(); else if(i.style.display==='block') i.click();
         }
 
-        function update() {
-            if(myId && players[myId] && !isMeeting && !players[myId].isDead) {
+       function update() {
+            if(myId && players[myId] && !players[myId].isDead) {
                 let p = players[myId];
-                let mx = 0, my = 0;
-
-                // Keyboard
-                if(keys['w']) my=-5; if(keys['s']) my=5;
-                if(keys['a']) mx=-5; if(keys['d']) mx=5;
+                let mx = moveInput.x, my = moveInput.y;
+                if(keys['w']||keys['ArrowUp']) my=-1; if(keys['s']||keys['ArrowDown']) my=1; 
+                if(keys['a']||keys['ArrowLeft']) mx=-1; if(keys['d']||keys['ArrowRight']) mx=1;
                 
-                // Joystick Override
-                if(moveInput.x !== 0) mx = moveInput.x * 5;
-                if(moveInput.y !== 0) my = moveInput.y * 5;
+                if(mx||my) {
+                    // --- SAFE SPEED CHECK ---
+                    // If carrying is undefined or null, speed is 5. If carrying something, speed is 2.5.
+                    const speed = (p.carrying) ? 2.5 : 5;
+                    
+                    let nextX = p.x + mx * speed;
+                    let nextY = p.y + my * speed;
 
-                let nextX = p.x + mx, nextY = p.y + my;
-                let collides = walls.some(w => nextX+20>w.x && nextX-20<w.x+w.w && nextY+20>w.y && nextY-20<w.y+w.h);
+                    // --- ROBUST COLLISION CHECK ---
+                    // We allow walking ON TOP of: caves, water, grass, ice_rock, lava_pit
+                    // We only block walking on: 'fence', 'barn', 'tree'
+                    // If you want to block water, add 'water' to the list below.
+                    const blockers = ['fence', 'barn', 'tree'];
 
-                if(!collides && (mx||my)) {
-                    p.x = nextX; p.y = nextY;
-                    socket.emit('playerMovement', { roomId: currentRoomId, x:p.x, y:p.y });
+                    let collides = walls.some(w => {
+                        // Only check collision if it is a blocker type
+                        if (!blockers.includes(w.type)) return false;
+
+                        return (nextX + 15 > w.x && 
+                                nextX - 15 < w.x + w.w && 
+                                nextY + 15 > w.y && 
+                                nextY - 15 < w.y + w.h);
+                    });
+
+                    if(!collides) { 
+                        p.x = nextX; 
+                        p.y = nextY; 
+                        socket.emit('playerMovement', { roomId: currentRoomId, x:p.x, y:p.y }); 
+                    }
                 }
+                
+                // Camera
+                camX = p.x - window.innerWidth / 2; 
+                camY = p.y - window.innerHeight / 2;
+                camX = Math.max(0, Math.min(camX, 1600 - window.innerWidth)); 
+                camY = Math.max(0, Math.min(camY, 800 - window.innerHeight));
+                if (window.innerWidth > 1600) camX = -(window.innerWidth - 1600) / 2;
             }
             checkButtons();
             draw();
@@ -218,72 +194,100 @@
 
         function draw() {
             ctx.clearRect(0,0,canvas.width,canvas.height);
-            
-            // Draw Grass Pattern is handled by CSS, we just clear rect
-            
-            // Draw Fences (Walls)
-            ctx.fillStyle = '#8B4513'; // SaddleBrown
-            walls.forEach(w => {
-                ctx.fillRect(w.x, w.y, w.w, w.h);
-                // Fence Posts detail
-                ctx.fillStyle = '#654321';
-                ctx.fillRect(w.x, w.y, 5, 5); 
-                ctx.fillStyle = '#8B4513';
-            });
+            ctx.save();
+            ctx.translate(-camX, -camY); 
 
-            // Draw Players
-            Object.values(players).forEach(p => {
-                const img = getImg(p.skin);
-                if(p.isDead) {
-                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI/2); 
-                    ctx.filter = 'grayscale(100%)'; if(img.complete) ctx.drawImage(img, -20, -20, 40, 40);
-                    ctx.restore();
+            // 1. ZONES
+            ctx.fillStyle = '#7bed9f'; ctx.fillRect(0, 0, 800, 800); 
+            ctx.fillStyle = '#c7ecee'; ctx.fillRect(800, 0, 800, 400); 
+            ctx.fillStyle = '#2d3436'; ctx.fillRect(800, 400, 800, 400); 
+
+            // 2. DECORATIONS
+            decorations.forEach(d => {
+                const img = getImg(d.type);
+                if(img.complete && img.naturalHeight !== 0 && !img.isBroken) {
+                    ctx.drawImage(img, d.x, d.y, d.w, d.h);
                 } else {
-                    if(img.complete) ctx.drawImage(img, p.x-25, p.y-25, 50, 50);
-                    ctx.fillStyle = "white"; ctx.font = "bold 12px Nunito"; ctx.textAlign = "center"; 
-                    ctx.strokeStyle = "black"; ctx.lineWidth = 3;
-                    ctx.strokeText(p.name, p.x, p.y - 35);
-                    ctx.fillText(p.name, p.x, p.y - 35);
+                    // FALLBACK: Green square for grass, Red for others
+                    ctx.fillStyle = d.type.includes('grass') ? 'rgba(46, 204, 113, 0.5)' : 'red';
+                    ctx.fillRect(d.x, d.y, d.w, d.h);
                 }
             });
+
+            // 3. WALLS & PROPS
+            walls.forEach(w => {
+                if(w.type === 'water') { 
+                    const waterImg = getImg('water');
+                    if(waterImg.complete && !waterImg.isBroken) ctx.drawImage(waterImg, w.x, w.y, w.w, w.h);
+                    else { ctx.fillStyle='#54a0ff'; ctx.fillRect(w.x, w.y, w.w, w.h); }
+                }
+                else if(w.type === 'fence') { ctx.fillStyle='#8B4513'; ctx.fillRect(w.x, w.y, w.w, w.h); }
+                else {
+                    const img = getImg(w.type);
+                    if(img.complete && img.naturalHeight !== 0 && !img.isBroken) ctx.drawImage(img, w.x-5, w.y-5, w.w+10, w.h+10);
+                    else { ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(w.x, w.y, w.w, w.h); }
+                }
+            });
+
+            // 4. ITEMS
+            items.forEach(i => {
+                const img = getImg(i.type);
+                if(img.complete && !img.isBroken) ctx.drawImage(img, i.x-15, i.y-15, 30, 30);
+                else { ctx.fillStyle='yellow'; ctx.beginPath(); ctx.arc(i.x, i.y, 10, 0, Math.PI*2); ctx.fill(); }
+            });
+
+            // 5. PLAYERS
+            Object.values(players).sort((a,b)=>a.y-b.y).forEach(p => {
+                if(p.isDead) { ctx.font="40px Arial"; ctx.fillText("🍗", p.x, p.y+15); return; }
+                
+                const img = getImg(p.skin);
+                if(img.complete && !img.isBroken) ctx.drawImage(img, p.x-25, p.y-25, 50, 50);
+                else { ctx.fillStyle='blue'; ctx.fillRect(p.x-20, p.y-20, 40, 40); }
+                
+                if(p.carrying) {
+                    const itemImg = getImg(p.carrying);
+                    if(itemImg.complete && !itemImg.isBroken) ctx.drawImage(itemImg, p.x-10, p.y-55, 20, 20);
+                }
+
+                ctx.fillStyle="rgba(0,0,0,0.5)"; ctx.fillRect(p.x-40, p.y-45, 80, 16);
+                ctx.fillStyle="white"; ctx.font="bold 12px Nunito"; ctx.textAlign="center"; ctx.fillText(p.name, p.x, p.y-33);
+            });
+
+            ctx.restore();
         }
 
         function checkButtons() {
             if(!myId || !players[myId]) return;
             const me = players[myId];
-            const kBtn = document.getElementById('killBtn');
-            const rBtn = document.getElementById('reportBtn');
-            kBtn.style.display = 'none'; rBtn.style.display = 'none';
-            if(me.isDead || isMeeting) return;
+            const k=document.getElementById('killBtn'), i=document.getElementById('interactBtn'), r=document.getElementById('reportBtn');
+            k.style.display='none'; i.style.display='none'; r.style.display='none';
 
+            if(me.isDead) return;
+
+            // KILL
             let closest=null, d=9999;
-            Object.values(players).forEach(p => {
-                if(p.playerId!==myId) {
-                    let dist = Math.sqrt((p.x-me.x)**2 + (p.y-me.y)**2);
-                    if(dist<d){d=dist; closest=p;}
-                }
-            });
+            Object.values(players).forEach(p => { if(p.playerId!==myId){ let dist=Math.sqrt((p.x-me.x)**2+(p.y-me.y)**2); if(dist<d){d=dist; closest=p;} } });
+            if(me.role==='WOLF' && closest && !closest.isDead && d<120) { k.style.display='block'; k.onclick=()=>socket.emit('killPlayer', {roomId:currentRoomId, targetId:closest.playerId}); }
 
-            if(me.role === 'WOLF' && closest && !closest.isDead && d < 80) {
-                kBtn.style.display = 'block';
-                kBtn.onclick = () => socket.emit('killPlayer', { roomId: currentRoomId, targetId: closest.playerId });
+            // INTERACT
+            if (me.role !== 'WOLF') {
+                if (me.carrying) {
+                    const distToBarn = Math.sqrt((me.x - 800)**2 + (me.y - 400)**2);
+                    if (distToBarn < 200) {
+                        i.innerText = "DELIVER"; i.style.display='block';
+                        i.onclick = () => socket.emit('deliverItem', {roomId: currentRoomId});
+                    }
+                } else {
+                    let nearItem = items.find(it => Math.sqrt((it.x-me.x)**2 + (it.y-me.y)**2) < 100);
+                    if (nearItem) {
+                        i.innerText = "GRAB"; i.style.display='block';
+                        i.onclick = () => socket.emit('pickupItem', {roomId: currentRoomId, itemId: nearItem.id});
+                    }
+                }
             }
-            const bodyNearby = Object.values(players).some(p => p.isDead && Math.sqrt((p.x-me.x)**2 + (p.y-me.y)**2) < 80);
-            if(bodyNearby) {
-                rBtn.style.display = 'block';
-                rBtn.onclick = () => socket.emit('reportBody', { roomId: currentRoomId });
-            }
-        }
-        
-        function renderVoting() {
-             const c = document.getElementById('voteContainer'); c.innerHTML = '';
-            Object.values(players).forEach(p => {
-                const card = document.createElement('div');
-                card.className = `player-card ${p.isDead ? 'dead' : ''}`;
-                card.innerHTML = `<img src="assets/${p.skin}.png" style="width:100%"><br>${p.name}`;
-                card.onclick = () => socket.emit('castVote', p.playerId); // Add voting logic
-                c.appendChild(card);
-            });
+
+            // REPORT
+            if(Object.values(players).some(p => p.isDead && Math.sqrt((p.x-me.x)**2+(p.y-me.y)**2)<120)) { r.style.display='block'; r.onclick=()=>socket.emit('reportBody', {roomId:currentRoomId}); }
         }
     </script>
 </body>
