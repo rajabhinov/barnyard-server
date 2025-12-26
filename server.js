@@ -1,3 +1,4 @@
+
 const express = require('express');
 const app = express();
 const http = require('http');
@@ -95,9 +96,13 @@ io.on('connection', (socket) => {
       socket.join(roomId);
       
       room.players[socket.id] = {
-        x: 700, y: 400, playerId: socket.id, role: 'INNOCENT',
-        name: userData.name || "Player", skin: userData.skin || "bear", 
-        isDead: false, carrying: null 
+        x: 700, y: 400, 
+        playerId: socket.id, 
+        role: 'INNOCENT',
+        name: userData.name || "Player", 
+        skin: userData.skin || "bear", 
+        isDead: false, 
+        carrying: null // <--- THIS MUST BE HERE AND NULL
       };
 
       const pCount = Object.keys(room.players).length;
@@ -209,3 +214,4 @@ function resetRoom(room) { /* Same as before */
 function getRoomList() { return Object.values(rooms).map(r => ({ id: r.id, region: r.region, playerCount: Object.keys(r.players).length })); }
 
 server.listen(3000);
+
