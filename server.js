@@ -143,6 +143,46 @@ socket.on('playerMovement', ({ roomId, x, y, zone }) => {
 
   socket.to(roomId).emit('playerMoved', p);
 });
+  /* ===================== GHOST CHAT ===================== */
+socket.on('ghostMessage', ({ roomId, text }) => {
+  const room = rooms[roomId];
+  const p = room?.players[socket.id];
+  // Only allow dead players to use ghost chat
+  if (p && p.isDead) {
+    io.to(roomId).emit('ghostMessage', `${p.name}: ${text}`);
+  }
+});
+
+/* ===================== NEW ROLE ACTIONS ===================== */
+// Sheriff Kill Logic
+socket.on('sheriffKill', ({ roomId, targetId }) => {
+  const room = rooms[roomId];
+  const sheriff = room.players[socket.id];
+  const victim = room.players[targetId];
+
+  if (sheriff?.role === 'SHERIFF' && !sheriff.isDead) {
+    victim.isDead = true;
+    // If Sheriff kills an Innocent, Sheriff dies too (Classic mechanic)
+    if (victim.role !== 'WOLF') {
+      sheriff.isDead = true;
+      io.to(roomId).emit('playerDied', { victimId: sheriff.id });
+    }
+    io.to(roomId).emit('playerDied', { victimId: victim.id });
+    checkWinCondition(room);
+  }
+});
+
+// Medic Revive Logic
+socket.on('revivePlayer', ({ roomId, targetId }) => {
+  const room = rooms[roomId];
+  const medic = room.players[socket.id];
+  const victim = room.players[targetId];
+
+  if (medic?.role === 'MEDIC' && !medic.isDead && victim?.isDead) {
+    victim.isDead = false;
+    io.to(roomId).emit('currentPlayers', room.players); // Refresh state
+  }
+});
 
 /* ===================== KILL ===================== */
 socket.on('killPlayer', ({ roomId, targetId }) => {
@@ -296,3 +336,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () =>
   console.log("🔥 Game Server running on port", PORT)
 );
+
