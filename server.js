@@ -14,11 +14,14 @@ const io = new Server(server, {
     origin: [
       "https://igs-pet.web.app",
       "https://igs-pet.firebaseapp.com",
-      "http://localhost:3000"
+      "http://localhost:3000", // For local testing
+      "http://127.0.0.1:5500"  // For Live Server testing
     ],
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+    allowedHeaders: ["my-custom-header"],
+  },
+  allowEIO3: true // Helps with compatibility for older browser clients
 });
 
 
@@ -340,4 +343,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log("Server running on port", PORT);
 });
+
 
