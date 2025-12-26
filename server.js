@@ -1,7 +1,6 @@
-/*********************************************************
- * INDICER PET MULTIPLAYER GAME SERVER
- * FINAL SINGLE FILE (ALL FEATURES)
- *********************************************************/
+/******************************************************
+ * INDICER PET MULTIPLAYER SERVER (NO BOTS)
+ ******************************************************/
 
 const express = require('express');
 const app = express();
@@ -18,23 +17,19 @@ const io = new Server(server, {
     ],
     methods: ["GET", "POST"],
     credentials: true
-  },
-  allowEIO3: true
+  }
 });
-
 
 app.use(express.static('public'));
 
-/* =====================================================
-   CONSTANTS
-===================================================== */
+/* ===================== CONSTANTS ===================== */
 const ZONES = { FARM:'farm', ICE:'ice', VOLCANO:'volcano', DESERT:'desert' };
 const MAP_SIZE = 800;
 const KILL_COOLDOWN = 20000;
 const EMERGENCY_LIMIT = 1;
 const AFK_LIMIT = 120000;
 
-/* ================= XP & RANK ================= */
+/* ===================== XP & RANK ===================== */
 const RANKS = [
   { name:'Bronze', min:0 },
   { name:'Silver', min:500 },
@@ -42,15 +37,20 @@ const RANKS = [
   { name:'Platinum', min:3000 },
   { name:'Diamond', min:6000 }
 ];
-const XP = { WIN:200, LOSE:50, TASK:25, KILL:100, SURVIVE:75 };
 
-function getRank(xp){
+const XP = {
+  WIN:200,
+  LOSE:50,
+  TASK:25,
+  KILL:100,
+  SURVIVE:75
+};
+
+function getRank(xp) {
   return [...RANKS].reverse().find(r => xp >= r.min).name;
 }
 
-/* =====================================================
-   WORLD DATA
-===================================================== */
+/* ===================== WORLD DATA ===================== */
 const worldData = {
   farm:{ walls:[], doors:[], decorations:[] },
   ice:{ walls:[], doors:[], decorations:[] },
@@ -87,85 +87,51 @@ worldData.desert.walls.push({x:200,y:200,w:60,h:80,type:'cactus'});
 worldData.desert.doors.push({x:720,y:370,w:60,h:60,target:'farm',tx:100,ty:400});
 worldData.desert.decorations.push({x:300,y:500,w:80,h:80,type:'camel'});
 
-/* =====================================================
-   ITEMS
-===================================================== */
+/* ===================== ITEMS ===================== */
 const initialItems = [
-  {id:'bag1',type:'bag',x:200,y:200,zone:'farm'},
-  {id:'ice1',type:'ice-box',x:250,y:250,zone:'ice'},
-  {id:'stone1',type:'stone',x:500,y:500,zone:'volcano'},
-  {id:'yucca1',type:'yucca',x:400,y:400,zone:'desert'}
+  { id:'bag1',type:'bag',x:200,y:200,zone:'farm' },
+  { id:'ice1',type:'ice-box',x:250,y:250,zone:'ice' },
+  { id:'stone1',type:'stone',x:500,y:500,zone:'volcano' },
+  { id:'yucca1',type:'yucca',x:400,y:400,zone:'desert' }
 ];
 
-/* =====================================================
-   ROOMS
-===================================================== */
+/* ===================== ROOMS ===================== */
 const rooms = {
   room_us:{ id:'room_us', region:'US', players:{}, items:[], taskProgress:0, isMeeting:false, votes:{} }
 };
 rooms.room_us.items = JSON.parse(JSON.stringify(initialItems));
 
-/* =====================================================
-   BOTS
-===================================================== */
-function createBot(id){
-  return {
-    isBot:true,
-    playerId:id,
-    name:`Bot_${id.slice(-3)}`,
-    x:Math.random()*600+100,
-    y:Math.random()*600+100,
-    role:'INNOCENT',
-    isDead:false,
-    carrying:null,
-    zone:'farm',
-    lastKillTime:0,
-    xp:0,
-    rank:'Bronze',
-    lastActive:Date.now()
-  };
-}
-
-function ensureBots(room, min=6){
-  while(Object.keys(room.players).length < min){
-    const id='bot_'+Math.random().toString(36).slice(2);
-    room.players[id]=createBot(id);
-  }
-}
-
-/* =====================================================
-   SOCKET.IO
-===================================================== */
+/* ===================== SOCKET.IO ===================== */
 io.on('connection', socket => {
 
   socket.emit('roomListUpdate', getRoomList());
 
-  socket.on('joinRoom', ({roomId,userData})=>{
-    const room=rooms[roomId];
-    if(!room) return;
+  socket.on('joinRoom', ({ roomId, userData }) => {
+    const room = rooms[roomId];
+    if (!room) return;
+
     socket.join(roomId);
 
-    room.players[socket.id]={
-      playerId:socket.id,
-      name:userData?.name||'Player',
-      skin:userData?.skin||'bear',
-      x:400,y:500,
-      role:'INNOCENT',
-      isDead:false,
-      carrying:null,
-      zone:'farm',
-      lastKillTime:0,
-      emergenciesUsed:0,
-      xp:0,
-      rank:'Bronze',
-      lastActive:Date.now()
+    room.players[socket.id] = {
+      playerId: socket.id,
+      name: userData?.name || 'Player',
+      skin: userData?.skin || 'bear',
+      x: 400, y: 500,
+      role: 'INNOCENT',
+      isDead: false,
+      carrying: null,
+      zone: 'farm',
+      lastKillTime: 0,
+      emergenciesUsed: 0,
+      xp: 0,
+      rank: 'Bronze',
+      lastActive: Date.now()
     };
 
-    ensureBots(room);
-
-    const ids=Object.keys(room.players);
-    if(ids.length>=2){
-      room.players[ids[Math.floor(Math.random()*ids.length)]].role='WOLF';
+    // Assign ONE wolf if enough players
+    const ids = Object.keys(room.players);
+    if (ids.length >= 2 && !ids.some(id => room.players[id].role === 'WOLF')) {
+      room.players[ids[Math.floor(Math.random() * ids.length)]].role = 'WOLF';
     }
 
     socket.emit('worldData', worldData);
@@ -174,174 +140,169 @@ io.on('connection', socket => {
     socket.emit('taskUpdate', room.taskProgress);
   });
 
-  socket.on('playerMovement', ({roomId,x,y,zone})=>{
-    const r=rooms[roomId];
-    const p=r?.players[socket.id];
-    if(!p) return;
-    p.x=x; p.y=y; p.zone=zone; p.lastActive=Date.now();
+  socket.on('playerMovement', ({ roomId, x, y, zone }) => {
+    const room = rooms[roomId];
+    const p = room?.players[socket.id];
+    if (!p) return;
+    p.x = x; p.y = y; p.zone = zone;
+    p.lastActive = Date.now();
     socket.to(roomId).emit('playerMoved', p);
   });
 
-  socket.on('pickupItem', ({roomId,itemId})=>{
-    const r=rooms[roomId];
-    const p=r?.players[socket.id];
-    if(!p||p.carrying) return;
-    const idx=r.items.findIndex(i=>i.id===itemId && i.zone===p.zone);
-    if(idx!==-1){
-      p.carrying=r.items[idx].type;
-      r.items.splice(idx,1);
-      io.to(roomId).emit('itemsUpdate', r.items);
-      io.to(roomId).emit('currentPlayers', r.players);
+  socket.on('pickupItem', ({ roomId, itemId }) => {
+    const room = rooms[roomId];
+    const p = room?.players[socket.id];
+    if (!p || p.carrying) return;
+
+    const idx = room.items.findIndex(i => i.id === itemId && i.zone === p.zone);
+    if (idx !== -1) {
+      p.carrying = room.items[idx].type;
+      room.items.splice(idx, 1);
+      io.to(roomId).emit('itemsUpdate', room.items);
+      io.to(roomId).emit('currentPlayers', room.players);
     }
   });
 
-  socket.on('deliverItem', ({roomId})=>{
-    const r=rooms[roomId];
-    const p=r?.players[socket.id];
-    if(!p||!p.carrying||p.zone!=='farm') return;
-    p.carrying=null;
-    p.xp+=XP.TASK;
-    p.rank=getRank(p.xp);
-    r.taskProgress+=10;
-    io.to(roomId).emit('taskUpdate', r.taskProgress);
-    io.to(roomId).emit('xpUpdate', r.players);
-    if(r.taskProgress>=100){
-      io.to(roomId).emit('gameOver',{winner:'FARMERS'});
-      resetRoom(r);
+  socket.on('deliverItem', ({ roomId }) => {
+    const room = rooms[roomId];
+    const p = room?.players[socket.id];
+    if (!p || !p.carrying || p.zone !== 'farm') return;
+
+    p.carrying = null;
+    p.xp += XP.TASK;
+    p.rank = getRank(p.xp);
+    room.taskProgress += 10;
+
+    io.to(roomId).emit('taskUpdate', room.taskProgress);
+    io.to(roomId).emit('xpUpdate', room.players);
+
+    if (room.taskProgress >= 100) {
+      io.to(roomId).emit('gameOver', { winner:'FARMERS' });
+      resetRoom(room);
     }
   });
 
-  socket.on('killPlayer', ({roomId,targetId})=>{
-    const r=rooms[roomId];
-    const killer=r?.players[socket.id];
-    const victim=r?.players[targetId];
-    const now=Date.now();
-    if(!killer||!victim||killer.role!=='WOLF'||killer.isDead||victim.isDead) return;
-    if(now-killer.lastKillTime < KILL_COOLDOWN) return;
-    killer.lastKillTime=now;
-    victim.isDead=true;
-    killer.xp+=XP.KILL;
-    killer.rank=getRank(killer.xp);
-    io.to(roomId).emit('playerDied',{victimId:targetId});
-    io.to(roomId).emit('xpUpdate', r.players);
-    checkWinCondition(r);
+  socket.on('killPlayer', ({ roomId, targetId }) => {
+    const room = rooms[roomId];
+    const killer = room?.players[socket.id];
+    const victim = room?.players[targetId];
+    const now = Date.now();
+
+    if (!killer || !victim) return;
+    if (killer.role !== 'WOLF' || killer.isDead || victim.isDead) return;
+    if (now - killer.lastKillTime < KILL_COOLDOWN) return;
+
+    killer.lastKillTime = now;
+    victim.isDead = true;
+
+    killer.xp += XP.KILL;
+    killer.rank = getRank(killer.xp);
+
+    io.to(roomId).emit('playerDied', { victimId: targetId });
+    io.to(roomId).emit('xpUpdate', room.players);
+
+    checkWinCondition(room);
   });
 
-  socket.on('emergencyMeeting', ({roomId})=>{
-    const r=rooms[roomId];
-    const p=r?.players[socket.id];
-    if(!p||p.isDead||p.emergenciesUsed>=EMERGENCY_LIMIT) return;
+  socket.on('emergencyMeeting', ({ roomId }) => {
+    const room = rooms[roomId];
+    const p = room?.players[socket.id];
+    if (!p || p.isDead || p.emergenciesUsed >= EMERGENCY_LIMIT) return;
+
     p.emergenciesUsed++;
-    r.isMeeting=true;
-    Object.values(r.players).forEach(pl=>{
-      if(!pl.isDead){ pl.x=400; pl.y=500; pl.zone='farm'; }
+    room.isMeeting = true;
+
+    Object.values(room.players).forEach(pl => {
+      if (!pl.isDead) {
+        pl.x = 400;
+        pl.y = 500;
+        pl.zone = 'farm';
+      }
     });
-    io.to(roomId).emit('meetingStarted', r.players);
+
+    io.to(roomId).emit('meetingStarted', room.players);
   });
 
-  socket.on('votePlayer', ({roomId,targetId})=>{
-    const r=rooms[roomId];
-    if(!r||r.votes[socket.id]) return;
-    r.votes[targetId]=(r.votes[targetId]||0)+1;
-    r.votes[socket.id]=true;
-    io.to(roomId).emit('voteUpdate', r.votes);
+  socket.on('votePlayer', ({ roomId, targetId }) => {
+    const room = rooms[roomId];
+    if (!room || room.votes[socket.id]) return;
+
+    room.votes[socket.id] = true;
+    room.votes[targetId] = (room.votes[targetId] || 0) + 1;
+    io.to(roomId).emit('voteUpdate', room.votes);
   });
 
-  socket.on('disconnect', ()=>{
-    Object.values(rooms).forEach(r=>{
-      if(r.players[socket.id]){
-        delete r.players[socket.id];
-        io.to(r.id).emit('userDisconnected', socket.id);
+  socket.on('disconnect', () => {
+    Object.values(rooms).forEach(room => {
+      if (room.players[socket.id]) {
+        delete room.players[socket.id];
+        io.to(room.id).emit('userDisconnected', socket.id);
+        checkWinCondition(room);
       }
     });
   });
 });
 
-/* =====================================================
-   GAME HELPERS
-===================================================== */
-function checkWinCondition(room){
-  const wolves=Object.values(room.players).filter(p=>p.role==='WOLF'&&!p.isDead);
-  const farmers=Object.values(room.players).filter(p=>p.role!=='WOLF'&&!p.isDead);
-  if(wolves.length===0){
-    io.to(room.id).emit('gameOver',{winner:'FARMERS'});
+/* ===================== HELPERS ===================== */
+function checkWinCondition(room) {
+  const wolves = Object.values(room.players).filter(p => p.role === 'WOLF' && !p.isDead);
+  const farmers = Object.values(room.players).filter(p => p.role !== 'WOLF' && !p.isDead);
+
+  if (wolves.length === 0) {
+    io.to(room.id).emit('gameOver', { winner:'FARMERS' });
     resetRoom(room);
-  }else if(wolves.length>=farmers.length && farmers.length>0){
-    io.to(room.id).emit('gameOver',{winner:'WOLF'});
+  } else if (wolves.length >= farmers.length && farmers.length > 0) {
+    io.to(room.id).emit('gameOver', { winner:'WOLF' });
     resetRoom(room);
   }
 }
 
-function resetRoom(room){
-  setTimeout(()=>{
-    room.items=JSON.parse(JSON.stringify(initialItems));
-    room.taskProgress=0;
-    Object.values(room.players).forEach(p=>{
-      p.isDead=false;
-      p.role='INNOCENT';
-      p.x=400;p.y=500;p.zone='farm';
+function resetRoom(room) {
+  setTimeout(() => {
+    room.items = JSON.parse(JSON.stringify(initialItems));
+    room.taskProgress = 0;
+    room.votes = {};
+    room.isMeeting = false;
+
+    Object.values(room.players).forEach(p => {
+      p.isDead = false;
+      p.role = 'INNOCENT';
+      p.x = 400; p.y = 500; p.zone = 'farm';
     });
-    const ids=Object.keys(room.players);
-    if(ids.length) room.players[ids[Math.floor(Math.random()*ids.length)]].role='WOLF';
+
+    const ids = Object.keys(room.players);
+    if (ids.length >= 2) {
+      room.players[ids[Math.floor(Math.random() * ids.length)]].role = 'WOLF';
+    }
+
     io.to(room.id).emit('gameReset');
-  },5000);
+    io.to(room.id).emit('currentPlayers', room.players);
+    io.to(room.id).emit('itemsUpdate', room.items);
+  }, 5000);
 }
 
-function getRoomList(){
-  return Object.values(rooms).map(r=>({
-    id:r.id,
-    region:r.region,
-    players:Object.keys(r.players).length
+function getRoomList() {
+  return Object.values(rooms).map(r => ({
+    id: r.id,
+    region: r.region,
+    players: Object.keys(r.players).length
   }));
 }
 
-/* =====================================================
-   ANTI AFK
-===================================================== */
-setInterval(()=>{
-  Object.values(rooms).forEach(r=>{
-    Object.entries(r.players).forEach(([id,p])=>{
-      if(!p.isBot && Date.now()-p.lastActive > AFK_LIMIT){
-        delete r.players[id];
-        io.to(r.id).emit('playerAFK', id);
+/* ===================== ANTI-AFK ===================== */
+setInterval(() => {
+  Object.values(rooms).forEach(room => {
+    Object.entries(room.players).forEach(([id, p]) => {
+      if (Date.now() - p.lastActive > AFK_LIMIT) {
+        delete room.players[id];
+        io.to(room.id).emit('playerAFK', id);
       }
     });
   });
-},30000);
+}, 30000);
 
-/* =====================================================
-   BOT BRAIN
-===================================================== */
-setInterval(()=>{
-  Object.values(rooms).forEach(r=>{
-    Object.values(r.players).forEach(b=>{
-      if(!b.isBot||b.isDead||r.isMeeting) return;
-      b.x+=Math.random()*10-5;
-      b.y+=Math.random()*10-5;
-      b.x=Math.max(40,Math.min(760,b.x));
-      b.y=Math.max(40,Math.min(760,b.y));
-      if(b.role==='WOLF' && Date.now()-b.lastKillTime>KILL_COOLDOWN){
-        const victims=Object.values(r.players).filter(p=>!p.isDead&&!p.isBot);
-        if(victims.length){
-          const v=victims[Math.floor(Math.random()*victims.length)];
-          v.isDead=true;
-          b.lastKillTime=Date.now();
-          io.to(r.id).emit('playerDied',{victimId:v.playerId});
-        }
-      }
-    });
-    io.to(r.id).emit('currentPlayers', r.players);
-  });
-},1000);
-
-/* =====================================================
-   START SERVER
-===================================================== */
+/* ===================== START SERVER ===================== */
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log("Server running on port", PORT);
+  console.log("🔥 Game Server running on port", PORT);
 });
-
-
-
-
