@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barnyard Betrayal - Server Browser</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { margin: 0; background-color: #1a1a1a; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; }
+
+        /* --- SERVER BROWSER UI --- */
+        #server-browser {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: #2d3436; color: white;
+            display: flex; flex-direction: column; align-items: center; padding-top: 50px;
+            z-index: 200;
+        }
+        .server-row {
+            background: #353b48; width: 80%; max-width: 800px; padding: 15px 25px;
+            margin-bottom: 10px; border-radius: 8px; display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3); border: 1px solid #444;
+        }
+        .server-row:hover { background: #3d4454; }
+        .server-info { display: flex; flex-direction: column; gap: 5px; }
+        .server-avatars { display: flex; gap: 5px; margin-top: 5px; }
+        .server-avatars img { width: 30px; height: 30px; border-radius: 50%; border: 2px solid #555; background: #222; }
+        .btn-join {
+            background: #2ecc71; color: white; border: none; padding: 10px 25px;
+            font-size: 1rem; font-weight: bold; border-radius: 5px; cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-join:hover { background: #27ae60; transform: scale(1.05); }
+
+        /* --- GAME HUD --- */
+        #ui-layer { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .hud-panel { pointer-events: auto; position: absolute; padding: 10px; background: rgba(0,0,0,0.6); color: white; border-radius: 8px; border: 1px solid #555; top: 20px; left: 20px;}
+        
+        .action-btn {
+            pointer-events: auto; display: none; position: absolute; bottom: 50px; 
+            width: 90px; height: 90px; border-radius: 50%; border: 4px solid white;
+            font-weight: bold; font-size: 18px; text-align: center; line-height: 90px;
+            cursor: pointer; box-shadow: 0 0 15px rgba(0,0,0,0.8);
+        }
+        #killBtn { background: #ff4757; color: white; right: 50px; }
+        #reportBtn { background: #2ed573; color: white; right: 160px; }
+
+        /* MEETING OVERLAY */
+        #meetingOverlay {
+            display: none; pointer-events: auto; position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(10, 10, 30, 0.95);
+            flex-direction: column; align-items: center; justify-content: center;
+            color: white; z-index: 99;
+        }
+        .vote-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 20px; width: 80%; }
+        .player-card { background: #333; padding: 10px; border-radius: 8px; text-align: center; cursor: pointer; border: 2px solid #555; }
+        .player-card img { width: 50px; height: 50px; object-fit: contain; }
+    </style>
+</head>
+<body>
+
+    <div id="server-browser">
+        <h1>🌍 SELECT SERVER</h1>
+        <p style="color:#aaa; margin-bottom: 30px;">Join a barnyard to start the mystery.</p>
+        <div id="server-list" style="width:100%; display:flex; flex-direction:column; align-items:center;">
+            <div style="color:white;">Loading Servers...</div>
+        </div>
+    </div>
+
+    <div id="ui-layer">
+        <div class="hud-panel">
+            <h3 style="margin:0;">🐮 BARNYARD BETRAYAL</h3>
+            <p>Role: <span id="myRole">...</span> | Room: <span id="roomName">...</span></p>
+        </div>
+        <div id="killBtn" class="action-btn">KILL</div>
+        <div id="reportBtn" class="action-btn">REPORT</div>
+    </div>
+
+    <div id="meetingOverlay">
+        <h1 style="color:#ff4757">🚨 ANIMAL DOWN! 🚨</h1>
+        <p>Who is the Wolf? Discuss and Vote.</p>
+        <div class="vote-grid" id="voteContainer"></div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+    
+    <script src="https://barnyard-game.onrender.com/socket.io/socket.io.js"></script> 
+    <script>
+        // CHANGE THIS URL IF DEPLOYED
+        const SERVER_URL = "https://barnyard-game.onrender.com"; 
+        // If running locally use: const SERVER_URL = "";
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const myName = urlParams.get('name') || "Guest";
+        const mySkin = urlParams.get('skin') || "bear";
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const socket = io(SERVER_URL);
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const images = {};
+        function getImg(type) {
+            if(!images[type]) { const i = new Image(); i.src = `assets/${type}.png`; images[type] = i; }
+            return images[type];
+        }
+
+        let players = {};
+        let walls = [];
+        let myId = null;
+        let isMeeting = false;
+        let currentRoomId = null;
+
+        // --- LOBBY LOGIC ---
+        socket.on('roomListUpdate', (rooms) => {
+            if(currentRoomId) return; // If already playing, ignore list updates
+            
+            const list = document.getElementById('server-list');
+            list.innerHTML = '';
+            rooms.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'server-row';
+                
+                // Generate Avatars HTML
+                let avatarsHtml = '';
+                r.previewSkins.forEach(skin => avatarsHtml += `<img src="assets/${skin}.png">`);
+
+                div.innerHTML = `
+                    <div class="server-info">
+                        <div style="font-weight:bold; font-size:1.1rem;">${r.region}</div>
+                        <div style="color:#aaa; font-size:0.9rem;">Players: ${r.playerCount} / ${r.maxPlayers}</div>
+                        <div class="server-avatars">${avatarsHtml}</div>
+                    </div>
+                    <button class="btn-join" onclick="joinGame('${r.id}')">JOIN ▶</button>
+                `;
+                list.appendChild(div);
+            });
+        });
+
+        window.joinGame = (roomId) => {
+            currentRoomId = roomId;
+            document.getElementById('server-browser').style.display = 'none';
+            document.getElementById('ui-layer').style.display = 'block';
+            document.getElementById('roomName').innerText = roomId;
+            
+            // Send Join Request
+            socket.emit('joinRoom', { roomId, userData: { name: myName, skin: mySkin } });
+            
+            // Start Game Loop
+            update();
+        };
+
+        // --- GAME LOGIC ---
+        const keys = {};
+        window.addEventListener('keydown', e => keys[e.key] = true);
+        window.addEventListener('keyup', e => keys[e.key] = false);
+
+        socket.on('currentPlayers', (p) => { players = p; myId = socket.id; updateUI(); });
+        socket.on('playerMoved', (p) => { if(players[p.playerId]) Object.assign(players[p.playerId], p); });
+        socket.on('mapData', (w) => { walls = w; });
+        socket.on('playerDied', (d) => { if(players[d.victimId]) players[d.victimId].isDead = true; });
+        socket.on('userDisconnected', (id) => { delete players[id]; });
+        
+        socket.on('meetingStarted', () => {
+            isMeeting = true;
+            document.getElementById('meetingOverlay').style.display = 'flex';
+            renderVoting();
+        });
+
+        function updateUI() {
+            if(players[myId]) {
+                const r = players[myId].role;
+                const el = document.getElementById('myRole');
+                el.innerText = r;
+                el.style.color = (r === 'WOLF') ? '#ff4757' : '#2ed573';
+            }
+        }
+
+        function update() {
+            if(myId && players[myId] && !isMeeting && !players[myId].isDead) {
+                let p = players[myId];
+                let mx=0, my=0;
+                if(keys['w']) my=-5; if(keys['s']) my=5;
+                if(keys['a']) mx=-5; if(keys['d']) mx=5;
+
+                let nextX = p.x + mx, nextY = p.y + my;
+                let collides = walls.some(w => nextX+20>w.x && nextX-20<w.x+w.w && nextY+20>w.y && nextY-20<w.y+w.h);
+
+                if(!collides && (mx||my)) {
+                    p.x = nextX; p.y = nextY;
+                    socket.emit('playerMovement', { roomId: currentRoomId, x:p.x, y:p.y });
+                }
+            }
+            checkButtons();
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function draw() {
+            ctx.clearRect(0,0,canvas.width,canvas.height);
+            ctx.fillStyle = '#2d3436'; ctx.fillRect(0,0,canvas.width,canvas.height); // Floor
+
+            ctx.fillStyle = '#636e72'; // Walls
+            walls.forEach(w => { ctx.fillRect(w.x, w.y, w.w, w.h); });
+
+            Object.values(players).forEach(p => {
+                const img = getImg(p.skin);
+                if(p.isDead) {
+                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(Math.PI/2); 
+                    ctx.filter = 'grayscale(100%)'; if(img.complete) ctx.drawImage(img, -20, -20, 40, 40);
+                    ctx.restore();
+                } else {
+                    if(img.complete) ctx.drawImage(img, p.x-25, p.y-25, 50, 50);
+                    ctx.fillStyle = "white"; ctx.font = "12px Arial"; ctx.textAlign = "center";
+                    ctx.fillText(p.name, p.x, p.y - 35);
+                }
+            });
+        }
+
+        function checkButtons() {
+            if(!myId || !players[myId]) return;
+            const me = players[myId];
+            const kBtn = document.getElementById('killBtn');
+            const rBtn = document.getElementById('reportBtn');
+            kBtn.style.display = 'none'; rBtn.style.display = 'none';
+            if(me.isDead || isMeeting) return;
+
+            // Simple Distance Check
+            let closest=null, d=9999;
+            Object.values(players).forEach(p => {
+                if(p.playerId!==myId) {
+                    let dist = Math.sqrt((p.x-me.x)**2 + (p.y-me.y)**2);
+                    if(dist<d){d=dist; closest=p;}
+                }
+            });
+
+            if(me.role === 'WOLF' && closest && !closest.isDead && d < 80) {
+                kBtn.style.display = 'block';
+                kBtn.onclick = () => socket.emit('killPlayer', { roomId: currentRoomId, targetId: closest.playerId });
+            }
+            // Report logic similar (omitted for brevity)
+            const bodyNearby = Object.values(players).some(p => p.isDead && Math.sqrt((p.x-me.x)**2 + (p.y-me.y)**2) < 80);
+            if(bodyNearby) {
+                rBtn.style.display = 'block';
+                rBtn.onclick = () => socket.emit('reportBody', { roomId: currentRoomId });
+            }
+        }
+        
+        function renderVoting() {
+             const c = document.getElementById('voteContainer'); c.innerHTML = '';
+            Object.values(players).forEach(p => {
+                const card = document.createElement('div');
+                card.className = `player-card ${p.isDead ? 'dead' : ''}`;
+                card.innerHTML = `<img src="assets/${p.skin}.png"><br>${p.name}`;
+                c.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
