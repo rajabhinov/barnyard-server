@@ -63,7 +63,7 @@
         <h1>🌍 SELECT SERVER</h1>
         <p style="color:#aaa; margin-bottom: 30px;">Join a barnyard to start the mystery.</p>
         <div id="server-list" style="width:100%; display:flex; flex-direction:column; align-items:center;">
-            <div style="color:white;">Loading Servers...</div>
+            <div style="color:white;">Connecting to Server List...</div>
         </div>
     </div>
 
@@ -83,11 +83,12 @@
     </div>
 
     <canvas id="gameCanvas"></canvas>
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+
     <script>
-        // CHANGE THIS URL IF DEPLOYED
-        const SERVER_URL = "https://barnyard-game.onrender.com"; 
-        // If running locally use: const SERVER_URL = "";
+       // Inside public/game.html ~ line 99
+const SERVER_URL = "https://barnyard-server.onrender.com"; // Make sure this matches Render EXACTLY
 
         const urlParams = new URLSearchParams(window.location.search);
         const myName = urlParams.get('name') || "Guest";
@@ -95,6 +96,8 @@
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        
+        // Connect to Socket.io
         const socket = io(SERVER_URL);
 
         canvas.width = window.innerWidth;
@@ -113,11 +116,21 @@
         let currentRoomId = null;
 
         // --- LOBBY LOGIC ---
+        socket.on('connect', () => {
+            console.log("Connected to server!");
+        });
+
         socket.on('roomListUpdate', (rooms) => {
             if(currentRoomId) return; // If already playing, ignore list updates
             
             const list = document.getElementById('server-list');
             list.innerHTML = '';
+            
+            if(rooms.length === 0) {
+                list.innerHTML = '<div style="color:white;">No servers online.</div>';
+                return;
+            }
+
             rooms.forEach(r => {
                 const div = document.createElement('div');
                 div.className = 'server-row';
@@ -258,5 +271,4 @@
         }
     </script>
 </body>
-
 </html>
