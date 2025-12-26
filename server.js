@@ -46,22 +46,39 @@ const XP = {
 const getRank = xp =>
   [...RANKS].reverse().find(r => xp >= r.min).name;
 
-/* ===================== WORLD DATA ===================== */
+/* ===================== UPDATED WORLD DATA ===================== */
 const worldData = {
-  farm:{
-    walls:[{x:300,y:300,w:200,h:150,type:'barn'}],
-    doors:[],
-    decorations:[],
-    trapDoors:[
-      {id:'td1',x:350,y:350,w:60,h:60,active:true},
-      {id:'td2',x:500,y:200,w:60,h:60,active:true}
+  farm: {
+    walls: [{ x: 300, y: 300, w: 200, h: 150, type: 'barn' }],
+    // Doors act as teleporters between zones
+    doors: [
+        { x: 380, y: 440, w: 40, h: 10, target: 'ice', tx: 400, ty: 100 },
+        { x: 10, y: 400, w: 10, h: 40, target: 'desert', tx: 750, ty: 400 }
+    ],
+    decorations: [
+      { x: 100, y: 150, type: 'tree', w: 80, h: 80 },
+      { x: 600, y: 120, type: 'grass', w: 40, h: 30 },
+      { x: 150, y: 550, type: 'bush', w: 50, h: 50 },
+      { x: 500, y: 650, type: 'tree', w: 80, h: 80 },
+      { x: 400, y: 350, type: 'task_station', w: 60, h: 60 } // Visual for task room
+    ],
+    trapDoors: [
+      { id: 'td1', x: 350, y: 350, w: 60, h: 60, active: true },
+      { id: 'td2', x: 500, y: 200, w: 60, h: 60, active: true }
     ]
   },
-  ice:{ walls:[], doors:[], decorations:[], trapDoors:[] },
-  volcano:{ walls:[], doors:[], decorations:[], trapDoors:[] },
-  desert:{ walls:[], doors:[], decorations:[], trapDoors:[] }
+  ice: { 
+    walls: [], 
+    doors: [{ x: 380, y: 20, w: 40, h: 10, target: 'farm', tx: 400, ty: 400 }], 
+    decorations: [
+      { x: 200, y: 200, type: 'snow_pine', w: 70, h: 90 },
+      { x: 500, y: 400, type: 'ice_rock', w: 60, h: 40 }
+    ],
+    trapDoors: [] 
+  },
+  volcano: { walls: [], doors: [], decorations: [{ x: 400, y: 400, type: 'lava_rock', w: 60, h: 60 }], trapDoors: [] },
+  desert: { walls: [], doors: [], decorations: [{ x: 300, y: 300, type: 'cactus', w: 40, h: 60 }], trapDoors: [] }
 };
-
 /* ===================== ITEMS ===================== */
 const initialItems = [
   { id:'bag1',type:'bag',x:200,y:200,zone:'farm' },
@@ -336,4 +353,5 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () =>
   console.log("🔥 Game Server running on port", PORT)
 );
+
 
