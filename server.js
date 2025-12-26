@@ -79,6 +79,37 @@ const worldData = {
   volcano: { walls: [], doors: [], decorations: [{ x: 400, y: 400, type: 'lava_rock', w: 60, h: 60 }], trapDoors: [] },
   desert: { walls: [], doors: [], decorations: [{ x: 300, y: 300, type: 'cactus', w: 40, h: 60 }], trapDoors: [] }
 };
+/* ===================== WORLD GENERATION ===================== */
+function generateDecorations(count, types, mapSize) {
+    const decos = [];
+    for (let i = 0; i < count; i++) {
+        decos.push({
+            x: Math.floor(Math.random() * (mapSize - 100)) + 50,
+            y: Math.floor(Math.random() * (mapSize - 100)) + 50,
+            // Picks a random asset from your provided list (e.g., 'tree', 'grass')
+            type: types[Math.floor(Math.random() * types.length)],
+            w: 60,
+            h: 60
+        });
+    }
+    return decos;
+}
+
+// Updated World Data using your assets
+const worldData = {
+    farm: {
+        walls: [{ x: 300, y: 300, w: 200, h: 150, type: 'barn' }],
+        // Assets verified from your list: 'tree', 'grass', 'bush'
+        decorations: generateDecorations(20, ['tree', 'grass', 'bush'], 800),
+        trapDoors: [{ id: 'td1', x: 350, y: 350, w: 60, h: 60, active: true }]
+    },
+    ice: { 
+        walls: [], 
+        // Assets verified from your list: 'snow_pine', 'ice_rock'
+        decorations: generateDecorations(15, ['snow_pine', 'ice_rock'], 800),
+        trapDoors: [] 
+    }
+};
 /* ===================== ITEMS ===================== */
 const initialItems = [
   { id:'bag1',type:'bag',x:200,y:200,zone:'farm' },
@@ -353,5 +384,6 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () =>
   console.log("🔥 Game Server running on port", PORT)
 );
+
 
 
