@@ -4,9 +4,16 @@ const http = require('http');
 const server = http.createServer(app);
 const { Server } = require("socket.io");
 const io = new Server(server, {
-    cors: { origin: "*" } // Allow connections from your Firebase app
+    cors: {
+        origin: [
+            "https://igs-pet.web.app",      // Your Firebase App
+            "https://igs-pet.firebaseapp.com", // Alternate Firebase URL
+            "http://localhost:3000"         // For local testing
+        ],
+        methods: ["GET", "POST"],
+        credentials: true
+    }
 });
-
 app.use(express.static('public'));
 
 // --- GAME STATE ---
